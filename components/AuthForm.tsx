@@ -1,28 +1,37 @@
 "use client";
+
 import { zodResolver } from "@hookform/resolvers/zod";
-import { DefaultValues, FieldValues, useForm } from "react-hook-form";
-import { object, z, ZodType } from "zod";
-import Link from "next/link";
+import {
+  DefaultValues,
+  FieldValues,
+  Path,
+  SubmitHandler,
+  useForm,
+  UseFormReturn,
+} from "react-hook-form";
+import { ZodType } from "zod";
+
 import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import ImageUpload from "@/components/ImageUpload";
-import React from "react";
-import { FIELD_NAMES } from "@/constants";
-import { FIELD_TYPES } from "@/constants";
+import Link from "next/link";
+import { FIELD_NAMES, FIELD_TYPES } from "@/constants";
+import FileUpload from "@/components/FileUpload";
+
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 interface Props<T extends FieldValues> {
   schema: ZodType<T>;
-  defaultValues?: T;
-  onSubmit?: (data: T) => Promise<{ success: boolean; error?: string }>;
+  defaultValues: T;
+  onSubmit: (data: T) => Promise<{ success: boolean; error?: string }>;
   type: "SIGN_IN" | "SIGN_UP";
 }
 
@@ -32,29 +41,50 @@ const AuthForm = <T extends FieldValues>({
   defaultValues,
   onSubmit,
 }: Props<T>) => {
+  const router = useRouter();
+
   const isSignIn = type === "SIGN_IN";
 
-  const form: useFormReturn<T> = useForm({
+  const form: UseFormReturn<T> = useForm({
     resolver: zodResolver(schema),
     defaultValues: defaultValues as DefaultValues<T>,
   });
 
-  const handleSumbit: Sumbithandler<T> = async (data) => {};
+  const handleSubmit: SubmitHandler<T> = async (data) => {
+    const result = await onSubmit(data);
+
+    if (result.success) {
+      toast({
+        title: "Success",
+        description: isSignIn
+          ? "You have successfully signed in."
+          : "You have successfully signed up.",
+      });
+
+      router.push("/");
+    } else {
+      toast({
+        title: `Error ${isSignIn ? "signing in" : "signing up"}`,
+        description: result.error ?? "An error occurred.",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-2xl font-semibold text-white">
-        {isSignIn ? "welcome back to BookWise" : "Create your library account"}
+        {isSignIn ? "Welcome back to BookWise" : "Create your library account"}
       </h1>
       <p className="text-light-100">
         {isSignIn
-          ? "Access the vast collection of resources, and stay update"
+          ? "Access the vast collection of resources, and stay updated"
           : "Please complete all fields and upload a valid university ID to gain access to the library"}
       </p>
       <Form {...form}>
         <form
-          onSubmit={form.handleSubmit(handleSumbit)}
-          className="space-y-6 w-full"
+          onSubmit={form.handleSubmit(handleSubmit)}
+          className="w-full space-y-6"
         >
           {Object.keys(defaultValues).map((field) => (
             <FormField
@@ -68,7 +98,14 @@ const AuthForm = <T extends FieldValues>({
                   </FormLabel>
                   <FormControl>
                     {field.name === "universityCard" ? (
-                      <ImageUpload />
+                      <FileUpload
+                        type="image"
+                        accept="image/*"
+                        placeholder="Upload your ID"
+                        folder="ids"
+                        variant="dark"
+                        onFileChange={field.onChange}
+                      />
                     ) : (
                       <Input
                         required
@@ -80,7 +117,6 @@ const AuthForm = <T extends FieldValues>({
                       />
                     )}
                   </FormControl>
-
                   <FormMessage />
                 </FormItem>
               )}
@@ -88,17 +124,19 @@ const AuthForm = <T extends FieldValues>({
           ))}
 
           <Button type="submit" className="form-btn">
-            {isSignIn ? "Sign in" : "Sign up"}
+            {isSignIn ? "Sign In" : "Sign Up"}
           </Button>
         </form>
       </Form>
+
       <p className="text-center text-base font-medium">
         {isSignIn ? "New to BookWise? " : "Already have an account? "}
+
         <Link
           href={isSignIn ? "/sign-up" : "/sign-in"}
-          className="font-semibold text-primary"
+          className="font-bold text-primary"
         >
-          {isSignIn ? "Create a account" : "Sign In"}
+          {isSignIn ? "Create an account" : "Sign in"}
         </Link>
       </p>
     </div>
